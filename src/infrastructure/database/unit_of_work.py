@@ -1,4 +1,3 @@
-# src/infrastructure/database/unit_of_work.py
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.domain.interfaces.unit_of_work import UnitOfWork
