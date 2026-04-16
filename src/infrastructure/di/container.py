@@ -1,4 +1,3 @@
-# container.py
 from typing import Self, Callable
 from src.infrastructure.config.settings import settings
 from src.infrastructure.database.database import db_manager
