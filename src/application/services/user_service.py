@@ -1,10 +1,12 @@
 import logging
 from typing import Callable
 from src.application.dtos.user_dto import CreateUserDTO, UserResponseDTO, UpdateUserDTO
+from src.application.services.cache_service import cache_service
 from src.domain.entities.profile import Profile
 from src.domain.entities.user import User
 from src.domain.interfaces.unit_of_work import UnitOfWork
 from src.infrastructure.external_apis.jsonplaceholder_client import JSONPlaceholderClient
+from src.infrastructure.messaging.event_publisher import event_publisher
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,12 @@ class UserService:
                 await uow.commit()
                 logger.info(f"User created successfully with id {saved_user.id}")
 
+            await event_publisher.publish_user_created(
+                saved_user.id,
+                saved_user.email.value,
+                saved_user.username
+            )
+
             if self._external_api:
                 try:
                     await self._external_api.create_post(
@@ -64,11 +72,21 @@ class UserService:
     async def get_user(self, user_id: int) -> UserResponseDTO | None:
         logger.info(f"Getting user {user_id}")
 
+        cached_user = await cache_service.get_user(user_id)
+        if cached_user:
+            logger.debug(f"User {user_id} found in cache")
+            return UserResponseDTO(**cached_user)
+
         async with self._uow_factory() as uow:
             user = await uow.user_repository.get_by_id(user_id)
             if not user:
                 return None
-            return UserResponseDTO.from_entity(user)
+
+            user_dto = UserResponseDTO.from_entity(user)
+
+            await cache_service.set_user(user_id, user_dto.model_dump())
+
+            return user_dto
 
     async def get_all_users(self, skip: int = 0, limit: int = 100) -> list[UserResponseDTO]:
         logger.info(f"Getting all users (skip={skip}, limit={limit})")
@@ -85,26 +103,37 @@ class UserService:
             if not user:
                 return None
 
+            changes = {}
+
             if update_dto.email is not None:
                 existing_user = await uow.user_repository.get_by_email(update_dto.email)
                 if existing_user and existing_user.id != user_id:
                     raise ValueError(f"Email {update_dto.email} is already taken")
                 user.change_email(update_dto.email)
+                changes["email"] = update_dto.email
 
             if update_dto.username is not None:
                 user.change_username(update_dto.username)
+                changes["username"] = update_dto.username
 
             if update_dto.full_name is not None:
                 user.change_name(update_dto.full_name)
+                changes["full_name"] = update_dto.full_name
 
             if update_dto.is_active is not None:
                 if update_dto.is_active:
                     user.activate()
                 else:
                     user.deactivate()
+                changes["is_active"] = update_dto.is_active
 
             updated_user = await uow.user_repository.update(user)
             await uow.commit()
+
+            await cache_service.invalidate_user(user_id)
+
+            if changes:
+                await event_publisher.publish_user_updated(user_id, changes)
 
             logger.info(f"User {user_id} updated successfully")
             return UserResponseDTO.from_entity(updated_user)
@@ -119,6 +148,9 @@ class UserService:
 
             if result:
                 await uow.commit()
+                await cache_service.invalidate_user(user_id)
+                await event_publisher.publish_user_deleted(user_id)
+
                 logger.info(f"User {user_id} deleted successfully")
 
             return result

@@ -1,5 +1,5 @@
 from typing import Annotated
-from pydantic import PostgresDsn
+from pydantic import PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +20,29 @@ class Settings(BaseSettings):
     DB_COMMAND_TIMEOUT: int = 30
     DB_STATEMENT_TIMEOUT: int = 30000
     DB_SSL_MODE: str = "prefer"
+
+    # === REDIS ===
+    REDIS_URL: RedisDsn = "redis://localhost:6379/0"
+    REDIS_MAX_CONNECTIONS: int = 100
+    REDIS_SOCKET_TIMEOUT: int = 5
+    REDIS_SOCKET_CONNECT_TIMEOUT: int = 5
+    REDIS_RETRY_ON_TIMEOUT: bool = True
+
+    # === KAFKA ===
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+    KAFKA_USER_EVENTS_TOPIC: str = "user-events"
+    KAFKA_PROFILE_EVENTS_TOPIC: str = "profile-events"
+    KAFKA_CONSUMER_GROUP_ID: str = "fastapi-consumer-group"
+
+    # === RATE LIMITER ===
+    RATE_LIMIT_REQUESTS: int = 100
+    RATE_LIMIT_PERIOD: int = 60
+    RATE_LIMIT_BURST: int = 200
+
+    # === CACHE ===
+    CACHE_USER_TTL: int = 300
+    CACHE_PROFILE_TTL: int = 300
+    CACHE_DEFAULT_TTL: int = 60
 
     # === БЕЗОПАСНОСТЬ ===
     APP_SECRET_KEY: str = ""

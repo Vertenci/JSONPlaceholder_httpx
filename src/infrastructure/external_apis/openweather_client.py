@@ -1,4 +1,3 @@
-# openweather_client.py
 import logging
 from typing import Any
 from .http_client import HTTPClient

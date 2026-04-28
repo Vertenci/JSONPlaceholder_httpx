@@ -1,4 +1,6 @@
 from typing import Self, Callable
+
+from src.infrastructure.cache.redis_client import redis_client
 from src.infrastructure.config.settings import settings
 from src.infrastructure.database.database import db_manager
 from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
@@ -10,6 +12,7 @@ from src.application.services.profile_service import ProfileService
 from src.application.services.external_post_service import ExternalPostService
 from src.application.services.weather_service import WeatherService
 from src.domain.interfaces.unit_of_work import UnitOfWork
+from src.infrastructure.messaging.kafka_producer import kafka_producer
 
 
 class DIContainer:
@@ -33,6 +36,10 @@ class DIContainer:
     async def initialize(self):
         await db_manager.initialize()
 
+        await redis_client.initialize()
+
+        await kafka_producer.initialize()
+
         self._jsonplaceholder_http = HTTPClient(base_url=settings.JSONPLACEHOLDER_API_URL)
         await self._jsonplaceholder_http.initialize()
 
@@ -51,6 +58,8 @@ class DIContainer:
         if self._openweather_http:
             await self._openweather_http.close()
 
+        await kafka_producer.close()
+        await redis_client.close()
         await db_manager.close()
 
     def _get_uow_factory(self) -> Callable[[], UnitOfWork]:

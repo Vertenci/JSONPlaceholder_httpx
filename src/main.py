@@ -48,9 +48,36 @@ app.include_router(profile_controller.router)
 app.include_router(posts_controller.router)
 app.include_router(weather_controller.router)
 
+
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": settings.APP_NAME}
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "environment": settings.APP_ENVIRONMENT,
+    }
+
+
+# @app.get("/metrics")
+# async def metrics():
+#     from src.infrastructure.cache.redis_client import redis_client
+#
+#     try:
+#         info = await redis_client._redis.info()
+#         redis_info = {
+#             "connected_clients": info.get("connected_clients", 0),
+#             "used_memory": info.get("used_memory_human", "0"),
+#             "keyspace_hits": info.get("keyspace_hits", 0),
+#             "keyspace_misses": info.get("keyspace_misses", 0),
+#         }
+#     except Exception as e:
+#         redis_info = {"error": str(e)}
+#
+#     return {
+#         "service": settings.APP_NAME,
+#         "redis": redis_info,
+#         "environment": settings.APP_ENVIRONMENT,
+#     }
 
 
 if __name__ == "__main__":
@@ -60,4 +87,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=settings.APP_DEBUG,
+        loop="uvloop",
+        http="httptools"
     )
